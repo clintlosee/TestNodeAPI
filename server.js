@@ -5,9 +5,11 @@ var express     = require('express'),
     app         = express(),
     bodyParser  = require('body-parser'),
     morgan      = require('morgan'),
-    mongoose    = require('mongoose')
+    mongoose    = require('mongoose'),
+    jwt         = require('jsonwebtoken'),
     port        = process.env.PORT || 8000,
-    User        = require('./app/models/user.js');
+    User        = require('./app/models/user.js'),
+    superSecret = 'thisismysupersecretsecret';
 
 // connect to the database (hosted on mongolab)
 // mongoose.connect('mongodb://closee:flyfish80@ds031883.mongolab.com:31883/nodeapitest');
@@ -39,6 +41,53 @@ app.get('/', function(req, res) {
 
 // get express router
 var apiRouter = express.Router();
+
+// route for authenticating users (POST http://localhost:8000/api/authenticate)
+apiRouter.post('/authenticate', function(req, res) {
+    // find the user
+    // select the name username and password explicityly
+    User.findOne({
+        username: req.body.username
+    }).select('name username password').exec(function(err, user) {
+
+        if (err) throw err;
+
+        // no user with that username was found
+        if (!user) {
+            res.json({
+                success: false,
+                message: 'Authentication failed. User not found'
+            });
+        } else if (user) {
+
+            // check if password matches
+            var validPassword = user.comparePassword(req.body.password);
+            if (!validPassword) {
+                res.json({
+                    success: false,
+                    message: 'Authentication failed. Wrong password'
+                });
+            } else {
+
+                // if user is found and password is correct
+                // create the token
+                var token = jwt.sign({
+                    name: user.name,
+                    username: user.username
+                }, superSecret, {
+                    expiresInMinutes: 1440 // expires in 24 hours
+                });
+
+                // return the information including token as json
+                res.json({
+                    success: true,
+                    message: 'Enjoy your token',
+                    token: token
+                });
+            }
+        }
+    });
+});
 
 // middleware to use for all requests
 apiRouter.use(function(req, res, next) {
