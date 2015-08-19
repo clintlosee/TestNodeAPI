@@ -14,7 +14,7 @@ var UserSchema = new Schema({
 UserSchema.pre('save', function(next) {
     var user = this;
 
-    // has password on if the password has been changed or new user
+    // has password only if the password has been changed or new user
     if (!user.isModified('password')) return next();
 
     // generate the hash

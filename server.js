@@ -91,10 +91,41 @@ apiRouter.post('/authenticate', function(req, res) {
 
 // middleware to use for all requests
 apiRouter.use(function(req, res, next) {
-    // logg stuff
+    // log stuff
     console.log('Somone just came to our app!');
 
-    next();
+// token for clintlosee user for testing purposes
+// eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJuYW1lIjoiQ2xpbnQiLCJ1c2VybmFtZSI6ImNsaW50bG9zZWUiLCJpYXQiOjE0NDAwMDg5NDIsImV4cCI6MTQ0MDA5NTM0Mn0.jbJYiGlUj7-sLubDUy3C24zMa48Xt6tu1DGEqqbwsZc
+
+    // check header or url params or post params for token
+    var token = req.body.token || req.param('token') || req.headers['x-access-token'];
+
+    // decode token
+    if (token) {
+
+        // verifies secret and checks exp
+        jwt.verify(token, superSecret, function(err, decoded) {
+            if (err) {
+                return res.status(403).send({
+                    success: false,
+                    message: 'Failed to authenticate token.'
+                });
+            } else {
+                // if everything is good, save to request for use in other routes
+                req.decoded = decoded;
+
+                next();
+            }
+        });
+    } else {
+
+        // if there is no token
+        // return an HTTP response of 403 (access forbidden) and an error message
+        return res.status(403).send({
+            success: false,
+            message: 'No token provided.'
+        });
+    }
 });
 
 // test route to make sure it works
@@ -161,7 +192,7 @@ apiRouter.route('/users/:user_id')
         User.findById(req.params.user_id, function(err, user) {
             if(err) res.send(err);
 
-            // update the user info only if its new
+            // update the user info only if it is new
             if(req.body.name) user.name = req.body.name;
             if(req.body.username) user.username = req.body.username;
             if(req.body.password) user.password = req.body.password;
@@ -187,6 +218,11 @@ apiRouter.route('/users/:user_id')
             res.json({ message: 'Successfully deleted' });
         });
     });
+
+// api endpoint to get user information
+apiRouter.get('/me', function(req, res) {
+    res.send(req.decoded);
+});
 
 // REGISTER OUR ROUTES -------------
 // all our routes will be prefixed by /api
